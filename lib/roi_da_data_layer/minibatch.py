@@ -68,12 +68,19 @@ def _get_image_blob(roidb, scale_inds):
   scales.
   """
   num_images = len(roidb)
-
+  # print("num_images=",num_images)
   processed_ims = []
   im_scales = []
   for i in range(num_images):
     #im = cv2.imread(roidb[i]['image'])
+    # print("*")
+    # print("path=",roidb[i]['image'])
     im = imread(roidb[i]['image'])
+    # print("img_shape=",im.shape)
+
+    if len(im.shape)!=2:
+      if im.shape[2]==4:##################################################################################################
+        im=im[:,:,0:3]
 
     if len(im.shape) == 2:
       im = im[:,:,np.newaxis]

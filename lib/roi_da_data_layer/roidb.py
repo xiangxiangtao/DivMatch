@@ -18,15 +18,21 @@ def prepare_roidb(imdb):
   recorded.
   """
   roidb = imdb.roidb
+  # print("roidb[0]",roidb[0])
   if not (imdb.name.startswith('coco')):
     sizes = [PIL.Image.open(imdb.image_path_at(i)).size
          for i in range(imdb.num_images)]
+    # print(sizes)
 
   for i in range(len(imdb.image_index)):
     roidb[i]['img_id'] = imdb.image_id_at(i)
     roidb[i]['image'] = imdb.image_path_at(i)
+    # if i==5011:
+    # print(imdb.image_path_at(5011))
+    # print(sizes[i][0])
     if not (imdb.name.startswith('coco')):
       roidb[i]['width'] = sizes[i][0]
+      # print(roidb[i]['width'] )
       roidb[i]['height'] = sizes[i][1]
     # need gt_overlaps as a dense array for argmax
     gt_overlaps = roidb[i]['gt_overlaps'].toarray()
@@ -51,8 +57,13 @@ def rank_roidb_ratio(roidb):
     ratio_small = 0.5 # smallest ratio to preserve.    
     
     ratio_list = []
-    print(len(roidb))
+    # print("**")
+    # print(len(roidb))
+    # print("**")
     for i in range(len(roidb)):
+      # if roidb[i]['width']:
+      #   print("**")
+      #   print(i)
       width = roidb[i]['width']
       height = roidb[i]['height']
       ratio = width / float(height)
@@ -116,6 +127,9 @@ def combined_roidb(imdb_names, training=True):
 
   roidbs = [get_roidb(s) for s in imdb_names.split('+')]
   roidb = roidbs[0]
+  # print("***")
+  # print("len_roidb=",len(roidb))
+  # print("***")
 
   if len(roidbs) > 1:
     for r in roidbs[1:]:

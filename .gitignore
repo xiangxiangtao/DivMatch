@@ -1,0 +1,15 @@
+logs/*
+!logs/.gitkeep
+models/*
+!models/.gitkeep
+output/*
+!output/.gitkeep
+data/*
+!data/.gitkeep
+datasets/*
+!datasets/.gitkeep
+.idea/
+datasets_clipart/
+detection_result/*
+!detection_result/.gitkeep
+test_output/

@@ -23,7 +23,7 @@ def parse_rec(filename):
     obj_struct['truncated'] = int(obj.find('truncated').text)
     obj_struct['difficult'] = int(obj.find('difficult').text)
     bbox = obj.find('bndbox')
-    print(bbox)
+    # print(bbox)
     obj_struct['bbox'] = [int(float(bbox.find('xmin').text)),
                           int(float(bbox.find('ymin').text)),
                           int(float(bbox.find('xmax').text)),
@@ -114,9 +114,9 @@ def voc_eval(detpath,
     recs = {}
     for i, imagename in enumerate(imagenames):
       recs[imagename] = parse_rec(annopath.format(imagename))
-      if i % 100 == 0:
-        print('Reading annotation for {:d}/{:d}'.format(
-          i + 1, len(imagenames)))
+      # if i % 100 == 0:
+      #   print('Reading annotation for {:d}/{:d}'.format(
+      #     i + 1, len(imagenames)))
     # save
     print('Saving cached annotations to {:s}'.format(cachefile))
     with open(cachefile, 'wb') as f:

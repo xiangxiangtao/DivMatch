@@ -39,7 +39,9 @@ except NameError:
 
 class pascal_voc(imdb):
     def __init__(self, image_set, year, devkit_path=None):
+    # def __init__(self, image_set, year="07+12", devkit_path=None):
         imdb.__init__(self, 'voc_' + year + '_' + image_set)
+        # self._year = year
         self._year = year
         self._image_set = image_set
         self._devkit_path = self._get_default_path() if devkit_path is None \

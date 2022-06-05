@@ -28,7 +28,8 @@ class sampler(Sampler):
     def __len__(self):
         return self.num_data
 
-def create_dataloader(imdb_name, args):
+def create_dataloader(imdb_name, args, training_flag=True):
+    # print(1)
     imdb, roidb, ratio_list, ratio_index = combined_roidb(imdb_name)
     train_size = len(roidb)
 
@@ -41,7 +42,7 @@ def create_dataloader(imdb_name, args):
     sampler_batch = sampler(train_size, args.batch_size)
 
     dataset = roibatchLoader(roidb, ratio_list, ratio_index, args.batch_size, \
-                             imdb.num_classes, training=True)
+                             imdb.num_classes, training=training_flag)
 
     dataloader = torch.utils.data.DataLoader(dataset, batch_size=args.batch_size,
                                              sampler=sampler_batch, num_workers=args.num_workers)

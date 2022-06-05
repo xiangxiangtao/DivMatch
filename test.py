@@ -7,6 +7,8 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import shutil
+
 import _init_paths
 import os
 import sys
@@ -32,7 +34,7 @@ from model.rpn.bbox_transform import bbox_transform_inv
 from model.utils.net_utils import save_net, load_net, vis_detections
 from model.faster_rcnn.DivMatch_vgg16 import vgg16
 from model.faster_rcnn.DivMatch_resnet import resnet
-
+from lib.datasets.target_real import vis,vis_conf_thresh
 import pdb
 
 try:
@@ -51,6 +53,7 @@ def show_cam_on_image(mask, i,j):
     # cam = cam / np.max(cam)
     cv2.imwrite("channel/"+ str(i) +'_' + str(j) + "_cam.jpg", np.uint8(255 * cam))
 
+
 def parse_args():
     """
     Parse input arguments
@@ -62,24 +65,28 @@ def parse_args():
     parser.add_argument('--dataset', dest='dataset',
                         help='training dataset',
                         # default='pascal_voc', type=str)
-                        default = 'cityscapes', type = str)
+                        default = 'real', type = str)  ########################################
+                        # default = 'cityscapes', type = str)
                         # default = 'kitti', type = str)
                         # default = 'citykitti', type = str)
     parser.add_argument('--cfg', dest='cfg_file',
                         help='optional config file',
-                        default='cfgs/vgg16.yml', type=str)
+                        default='cfgs/vgg16.yml', type=str)##################################
     parser.add_argument('--net', dest='net',
                         help='vgg16, res50, res101, res152',
-                        default='vgg16', type=str)
+                        default='vgg16', type=str)###############################
     parser.add_argument('--set', dest='set_cfgs',
                         help='set config keys', default=None,
                         nargs=argparse.REMAINDER)
     parser.add_argument('--load_dir', dest='load_dir',
-                        help='directory to load models', default="models",
+                        help='directory to load models', default="models",###############################
                         type=str)
+    # parser.add_argument('--cuda', dest='cuda',
+    #                     help='whether use CUDA',
+    #                     action='store_true')
     parser.add_argument('--cuda', dest='cuda',
                         help='whether use CUDA',
-                        action='store_true')
+                        default=True, type=bool)
     parser.add_argument('--ls', dest='large_scale',
                         help='whether use large imag scale',
                         action='store_true')
@@ -94,45 +101,51 @@ def parse_args():
                         default=0, type=int)
     parser.add_argument('--checksession', dest='checksession',
                         help='checksession to load model',
-                        default=1, type=int)
+                        default=1, type=int)####################################
     parser.add_argument('--checkepoch', dest='checkepoch',
                         help='checkepoch to load network',
                         default=0, type=int) 
     parser.add_argument('--checkpoint', dest='checkpoint',
                         help='checkpoint to load network',
-                        default=74000, type=int)
+                        default=10000, type=int)###############################
     parser.add_argument('--vis', dest='vis',
                         help='visualization mode',
-                        action='store_true')
+                        default=vis,type=bool)#########################
     args = parser.parse_args()
     return args
 
 
-lr = cfg.TRAIN.LEARNING_RATE
+lr = cfg.TRAIN.LEARNING_RATE#####################
 momentum = cfg.TRAIN.MOMENTUM
 weight_decay = cfg.TRAIN.WEIGHT_DECAY
 
-
-
-if __name__ == '__main__':
-
+def evaluate(dataset_name,net_name,eval_split='test',model_path=None,test_dataset_name="targetval"):
     args = parse_args()
 
-    print('Called with args:')
-    print(args)
+    args.dataset=dataset_name
+    args.net=net_name
+    # print('Called with args:')
+    # print(args)
 
     if torch.cuda.is_available() and not args.cuda:
         print("WARNING: You have a CUDA device, so you should probably run with --cuda")
 
     np.random.seed(cfg.RNG_SEED)
-      if args.dataset in ["clipart", "watercolor", "comic"]:
-        args.imdb_name = "voc_integrated_trainval"
-        args.imdbval_name = args.dataset + "_test"
-        args.set_cfgs = ['ANCHOR_SCALES', '[8, 16, 32]', 'ANCHOR_RATIOS', '[0.5,1,2]', 'MAX_NUM_GT_BOXES', '20']
+    # if args.dataset in ["clipart", "watercolor", "comic"]:
+    #     args.imdb_name = "voc_integrated_trainval"
+    #     args.imdbval_name = args.dataset + "_test"
+    #     args.set_cfgs = ['ANCHOR_SCALES', '[8, 16, 32]', 'ANCHOR_RATIOS', '[0.5,1,2]', 'MAX_NUM_GT_BOXES', '20']
 
-    elif args.dataset == "cityscapes":
-        args.imdb_name = "cityscapes_train"
-        args.imdbval_name = "foggy_cityscapes_val"
+    # elif args.dataset == "cityscapes":
+    #     args.imdb_name = "cityscapes_train"
+    #     args.imdbval_name = "foggy_cityscapes_val"
+    #     args.set_cfgs = ['ANCHOR_SCALES', '[8, 16, 32]', 'ANCHOR_RATIOS', '[0.5,1,2]', 'MAX_NUM_GT_BOXES', '20']
+
+    if args.dataset in ["real"]:
+        print("args.dataset=",args.dataset)
+        # args.imdb_name = "voc_integrated_trainval"
+        # args.imdb_name = "{}_trainval".format(source_dataset_name)
+        args.imdbval_name = "{}_{}".format(test_dataset_name,eval_split)
         args.set_cfgs = ['ANCHOR_SCALES', '[8, 16, 32]', 'ANCHOR_RATIOS', '[0.5,1,2]', 'MAX_NUM_GT_BOXES', '20']
 
     args.cfg_file = "cfgs/{}_ls.yml".format(args.net) if args.large_scale else "cfgs/{}.yml".format(args.net)
@@ -141,21 +154,29 @@ if __name__ == '__main__':
     if args.set_cfgs is not None:
         cfg_from_list(args.set_cfgs)
 
-    print('Using config:')
-    pprint.pprint(cfg)
+    # print('Using config:')
+    # pprint.pprint(cfg)
 
     cfg.TRAIN.USE_FLIPPED = False
+    # print(args.imdbval_name)
     imdb, roidb, ratio_list, ratio_index = combined_roidb(args.imdbval_name, False)
     imdb.competition_mode(on=True)
 
     print('{:d} roidb entries'.format(len(roidb)))
 
-    input_dir = args.load_dir + "/" + args.net + "/" + args.dataset
+    input_dir = args.load_dir + "/" + args.net + "/" + args.dataset  #models/vgg16/clipart
     if not os.path.exists(input_dir):
         raise Exception('There is no input directory for loading network from ' + input_dir)
-    load_name = os.path.join(input_dir,
-                         #    'foggy_ImgMultiGRL4_trainval_1_0_90000.pth'.format(args.checksession, args.checkepoch, args.checkpoint))
-    			'clipart_DivMatch_trainval_{}_{}.pth'.format(args.checksession, args.checkpoint))
+    # load_name = os.path.join(input_dir,
+    #                          #    'foggy_ImgMultiGRL4_trainval_1_0_90000.pth'.format(args.checksession, args.checkepoch, args.checkpoint))
+    #                          'clipart_DivMatch_trainval_{}_{}.pth'.format(args.checksession, args.checkpoint))
+    if model_path==None:
+        load_name = os.path.join(input_dir,
+                                 #    'foggy_ImgMultiGRL4_trainval_1_0_90000.pth'.format(args.checksession, args.checkepoch, args.checkpoint))
+                                 'DivMatch_{}_{}_latest.pth'.format(args.dataset,args.net))##############################################
+    else:
+        load_name=model_path
+    # print("load model path=",load_name)
 
     # initilize the network here.
     if args.net == 'vgg16':
@@ -180,7 +201,7 @@ if __name__ == '__main__':
     fasterRCNN.load_state_dict(loaded_dict)
     if 'pooling_mode' in checkpoint.keys():
         cfg.POOLING_MODE = checkpoint['pooling_mode']
-    print('load model successfully!')
+    # print('load model successfully!')
     # initilize the tensor holder here.
     im_data = torch.FloatTensor(1)
     im_info = torch.FloatTensor(1)
@@ -195,11 +216,19 @@ if __name__ == '__main__':
         gt_boxes = gt_boxes.cuda()
 
     # make variable
-    im_data = Variable(im_data, volatile=True)
-    im_info = Variable(im_info, volatile=True)
-    num_boxes = Variable(num_boxes, volatile=True)
-    gt_boxes = Variable(gt_boxes, volatile=True)
+    # im_data = Variable(im_data, volatile=True)
+    # im_info = Variable(im_info, volatile=True)
+    # num_boxes = Variable(num_boxes, volatile=True)
+    # gt_boxes = Variable(gt_boxes, volatile=True)
 
+    with torch.no_grad():
+        im_data = Variable(im_data)
+    with torch.no_grad():
+        im_info = Variable(im_info)
+    with torch.no_grad():
+        num_boxes = Variable(num_boxes)
+    with torch.no_grad():
+        gt_boxes = Variable(gt_boxes)
 
     if args.cuda:
         cfg.CUDA = True
@@ -213,12 +242,11 @@ if __name__ == '__main__':
     vis = args.vis
 
     if vis:
-        thresh = 0.05
+        thresh = vis_conf_thresh
     else:
         thresh = 0.0
 
-
-    save_name = 'faster_rcnn_10'
+    save_name = 'faster_rcnn_10'  #####################################
     num_images = len(imdb.image_index)
     all_boxes = [[[] for _ in xrange(num_images)]
                  for _ in xrange(imdb.num_classes)]
@@ -237,6 +265,9 @@ if __name__ == '__main__':
 
     fasterRCNN.eval()
     empty_array = np.transpose(np.array([[], [], [], [], []]), (1, 0))
+
+    gt_path = "/home/ecust/txx/project/divmatch/DivMatch 1/datasets/real_annotated_2_voc/gt"
+
     for i in range(num_images):
         data = next(data_iter)
         im_data.data.resize_(data[0].size()).copy_(data[0])
@@ -282,11 +313,16 @@ if __name__ == '__main__':
         detect_time = det_toc - det_tic
         misc_tic = time.time()
         if vis:
-            im = cv2.imread(imdb.image_path_at(i))
-            im2show = np.copy(im)
+            # im = cv2.imread(imdb.image_path_at(i))
+            # im2show = np.copy(im)
+            image_path=imdb.image_path_at(i)
+            image_name=os.path.split(image_path)[-1]
+            im_path=os.path.join(gt_path,image_name)
+            im2show=cv2.imread(im_path).copy()
+
+        cls_dets_all = torch.zeros(0, 0).cuda()
 
 
-        cls_dets_all = torch.zeros(0,0).cuda()
         for j in xrange(1, imdb.num_classes):
             inds = torch.nonzero(scores[:, j] > thresh).view(-1)
             # if there is det
@@ -298,17 +334,15 @@ if __name__ == '__main__':
                 else:
                     cls_boxes = pred_boxes[inds][:, j * 4:(j + 1) * 4]
 
-                cls_dets = torch.cat((cls_boxes, cls_scores.unsqueeze(1), ), 1)
+                cls_dets = torch.cat((cls_boxes, cls_scores.unsqueeze(1),), 1)
                 cls_dets = cls_dets[order]
                 keep = nms(cls_dets, cfg.TEST.NMS)
                 cls_dets = cls_dets[keep.view(-1).long()]
                 if vis:
-                    im2show = vis_detections(im2show, imdb.classes[j], cls_dets.cpu().numpy(), 0.3)
+                    im2show = vis_detections(im2show, imdb.classes[j], cls_dets.cpu().numpy(), vis_conf_thresh)
                 all_boxes[j][i] = cls_dets.cpu().numpy()
             else:
                 all_boxes[j][i] = empty_array
-
-       
 
         # Limit to max_per_image detections *over all classes*
         if max_per_image > 0:
@@ -328,20 +362,42 @@ if __name__ == '__main__':
         sys.stdout.flush()
 
         if vis:
-            cv2.imwrite('result.png', im2show)
-            pdb.set_trace()
+
+            cv2.imwrite('detection_result/{}'.format(image_name), im2show)
+            # pdb.set_trace()
             # cv2.imshow('test', im2show)
             # cv2.waitKey(0)
-    end = time.time()
+    # end = time.time()
     with open(det_file, 'wb') as f:
         pickle.dump(all_boxes, f, pickle.HIGHEST_PROTOCOL)
 
-
-    print("test time: %0.4fs" % (end - start))
-    print('Evaluating detections')
-    imdb.evaluate_detections(all_boxes, output_dir)
+    # print("test time: %0.4fs" % (end - start))
+    # print('Evaluating detections')
+    map,cls_name_list,ap_list=imdb.evaluate_detections(all_boxes, output_dir)
 
     end = time.time()
     print("test time: %0.4fs" % (end - start))
+    return map,cls_name_list,ap_list
+
+if __name__ == '__main__':
+    print("*vis=",vis)
+
+    dataset_name="real"
+    test_dataset_name = "targetval"
+    net_name="vgg16"
+    eval_split="test"
+    model_path="/home/ecust/txx/project/divmatch/DivMatch 1/models/vgg16/real/weight_divmatch1_vgg16_composite6_realNotAnnotated_2/divmatch_real_vgg16_step9200.pth"
+    # delete test output fodler
+    delete_path_1="test_output"
+    if os.path.exists(delete_path_1):
+        shutil.rmtree(delete_path_1)
+    delete_path_2=os.path.join("datasets","{}".format(dataset_name),"annotations_cache")
+    if os.path.exists(delete_path_2):
+        shutil.rmtree(delete_path_2)
+
+    map,cls_name_list,ap_list=evaluate(dataset_name,net_name,eval_split=eval_split,model_path=model_path,test_dataset_name=test_dataset_name)
+    print("map={}".format(map))
+    print(cls_name_list)
+    print(["{:.4f}".format(i) for i in ap_list])
 
 
